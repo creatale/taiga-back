@@ -65,6 +65,7 @@ class Task(OCCModelMixin, WatchedModelMixin, BlockedMixin, TaggedMixin, models.M
     is_iocaine = models.BooleanField(default=False, null=False, blank=True,
                                      verbose_name=_("is iocaine"))
     external_reference = TextArrayField(default=None, verbose_name=_("external reference"))
+    estimation = models.FloatField(null=True, blank=True, verbose_name=_("estimation"), default=None)
     _importing = None
 
     class Meta:

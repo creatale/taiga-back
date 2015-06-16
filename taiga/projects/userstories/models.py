@@ -26,6 +26,7 @@ from taiga.base.tags import TaggedMixin
 from taiga.projects.occ import OCCModelMixin
 from taiga.projects.notifications.mixins import WatchedModelMixin
 from taiga.projects.mixins.blocked import BlockedMixin
+from taiga.projects.tasks.models import Task
 
 
 class RolePoints(models.Model):
@@ -102,6 +103,8 @@ class UserStory(OCCModelMixin, WatchedModelMixin, BlockedMixin, TaggedMixin, mod
                                              verbose_name=_("generated from issue"))
     external_reference = TextArrayField(default=None, verbose_name=_("external reference"))
     _importing = None
+    estimation = None
+    closed_points = None
 
     class Meta:
         verbose_name = "user story"
@@ -127,14 +130,26 @@ class UserStory(OCCModelMixin, WatchedModelMixin, BlockedMixin, TaggedMixin, mod
         return self.role_points
 
     def get_total_points(self):
-        not_null_role_points = [rp for rp in self.role_points.all() if rp.points.value is not None]
+        # not_null_role_points = [rp for rp in self.role_points.all() if rp.points.value is not None]
 
-        #If we only have None values the sum should be None
-        if not not_null_role_points:
-            return None
+        # #If we only have None values the sum should be None
+        # if not not_null_role_points:
+            # return None
 
-        total = 0.0
-        for rp in not_null_role_points:
-            total += rp.points.value
+        # total = 0.0
+        # for rp in not_null_role_points:
+            # total += rp.points.value
 
-        return total
+        return self.estimation
+		
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.estimation = 0
+        self.closed_points = 0
+        tasks = Task.objects.filter(user_story=self.id)
+        for task in tasks:
+            if task.estimation is not None:
+                self.estimation += task.estimation
+                if task.status.is_closed:
+                    self.closed_points += task.estimation
+    
