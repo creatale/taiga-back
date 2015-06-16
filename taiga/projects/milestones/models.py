@@ -24,9 +24,11 @@ from taiga.base.utils.slug import slugify_uniquely
 from taiga.base.utils.dicts import dict_sum
 from taiga.projects.notifications.mixins import WatchedModelMixin
 from taiga.projects.userstories.models import UserStory
+from taiga.projects.tasks.models import Task
 
 import itertools
 import datetime
+import collections
 
 
 class Milestone(WatchedModelMixin, models.Model):
@@ -83,10 +85,16 @@ class Milestone(WatchedModelMixin, models.Model):
         super().save(*args, **kwargs)
 
     def _get_user_stories_points(self, user_stories):
-        role_points = [us.role_points.all() for us in user_stories]
-        flat_role_points = itertools.chain(*role_points)
-        flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0}, flat_role_points)
-        return dict_sum(*flat_role_dicts)
+        # role_points = [us.role_points.all() for us in user_stories]
+        # flat_role_points = itertools.chain(*role_points)
+        # flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0}, flat_role_points)
+        # return dict_sum(*flat_role_dicts)
+        estimations = [us.estimation for us in user_stories]
+        return collections.Counter({'estimation': sum(estimations)})
+
+    def _get_user_stories_closed_points(self, user_stories):
+        closed_points = [us.closed_points for us in user_stories]
+        return collections.Counter({'closed_points': sum(closed_points)})
 
     @property
     def total_points(self):
@@ -96,9 +104,10 @@ class Milestone(WatchedModelMixin, models.Model):
 
     @property
     def closed_points(self):
-        return self._get_user_stories_points(
-            [us for us in self.user_stories.all() if us.is_closed]
-        )
+        # return self._get_user_stories_closed_points(
+            # [us for us in self.user_stories.all() if us.is_closed]
+        # )
+        return self._get_user_stories_closed_points(self.user_stories.all())
 
     def _get_increment_points(self):
         if hasattr(self, "_increments"):
@@ -149,8 +158,15 @@ class Milestone(WatchedModelMixin, models.Model):
         return self._get_increment_points()["shared_increment"]
 
     def closed_points_by_date(self, date):
-        return self._get_user_stories_points([
-            us for us in self.user_stories.filter(
-                finish_date__lt=date + datetime.timedelta(days=1)
-            ).prefetch_related('role_points', 'role_points__points') if us.is_closed
-        ])
+        # return self._get_user_stories_points([
+            # us for us in self.user_stories.filter(
+                # finish_date__lt=date + datetime.timedelta(days=1)
+            # ).prefetch_related('role_points', 'role_points__points') if us.is_closed
+        # ])
+        closed_points = 0
+        for us in self.user_stories.all():
+            tasks = Task.objects.filter(user_story=us.id).filter(finished_date__lt=date + datetime.timedelta(days=1))
+            for task in tasks:
+                if task.status.is_closed and task.estimation is not None:
+                    closed_points += task.estimation
+        return collections.Counter({'closed_points': closed_points})

@@ -55,6 +55,7 @@ class UserStorySerializer(WatchersValidator, serializers.ModelSerializer):
     description_html = serializers.SerializerMethodField("get_description_html")
     status_extra_info = BasicUserStoryStatusSerializer(source="status", required=False, read_only=True)
     assigned_to_extra_info = UserBasicInfoSerializer(source="assigned_to", required=False, read_only=True)
+    estimation = serializers.SerializerMethodField("get_estimation")
 
     class Meta:
         model = models.UserStory
@@ -94,6 +95,9 @@ class UserStorySerializer(WatchersValidator, serializers.ModelSerializer):
 
     def get_description_html(self, obj):
         return mdrender(obj.project, obj.description)
+
+    def get_estimation(self, obj):
+        return obj.estimation
 
 
 class UserStoryNeighborsSerializer(NeighborsSerializerMixin, UserStorySerializer):

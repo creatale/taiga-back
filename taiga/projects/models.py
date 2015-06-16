@@ -16,6 +16,7 @@
 
 import itertools
 import uuid
+import collections
 
 
 from django.core.exceptions import ValidationError
@@ -261,11 +262,17 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
         rp_query.delete()
 
     def _get_user_stories_points(self, user_stories):
-        role_points = [us.role_points.all() for us in user_stories]
-        flat_role_points = itertools.chain(*role_points)
-        flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0},
-                              flat_role_points)
-        return dict_sum(*flat_role_dicts)
+        # role_points = [us.role_points.all() for us in user_stories]
+        # flat_role_points = itertools.chain(*role_points)
+        # flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0},
+                              # flat_role_points)
+        # return dict_sum(*flat_role_dicts)
+        estimations = [us.estimation for us in user_stories]
+        return collections.Counter({'estimation': sum(estimations)})
+
+    def _get_user_stories_closed_points(self, user_stories):
+        closed_points = [us.closed_points for us in user_stories]
+        return collections.Counter({'closed_points': sum(closed_points)})
 
     def _get_points_increment(self, client_requirement, team_requirement):
         last_milestones = self.milestones.order_by('-estimated_finish')
@@ -324,11 +331,11 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     @property
     def calculated_points(self):
         user_stories = self.user_stories.all().prefetch_related('role_points', 'role_points__points')
-        closed_user_stories = user_stories.filter(is_closed=True)
+        # closed_user_stories = user_stories.filter(is_closed=True)
         assigned_user_stories = user_stories.filter(milestone__isnull=False)
         return {
             "defined": self._get_user_stories_points(user_stories),
-            "closed": self._get_user_stories_points(closed_user_stories),
+            "closed": self._get_user_stories_closed_points(user_stories),
             "assigned": self._get_user_stories_points(assigned_user_stories),
         }
 
