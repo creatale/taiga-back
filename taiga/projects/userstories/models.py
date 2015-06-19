@@ -27,6 +27,7 @@ from taiga.projects.occ import OCCModelMixin
 from taiga.projects.notifications.mixins import WatchedModelMixin
 from taiga.projects.mixins.blocked import BlockedMixin
 from taiga.projects.tasks.models import Task
+from taiga.projects.models import Project
 
 
 class RolePoints(models.Model):
@@ -130,17 +131,19 @@ class UserStory(OCCModelMixin, WatchedModelMixin, BlockedMixin, TaggedMixin, mod
         return self.role_points
 
     def get_total_points(self):
-        # not_null_role_points = [rp for rp in self.role_points.all() if rp.points.value is not None]
+        if self.project.estimation_mode is Project.TASK_ESTIMATION:
+            return self.estimation
+        else:
+            not_null_role_points = [rp for rp in self.role_points.all() if rp.points.value is not None]
 
-        # #If we only have None values the sum should be None
-        # if not not_null_role_points:
-            # return None
+            #If we only have None values the sum should be None
+            if not not_null_role_points:
+                return None
 
-        # total = 0.0
-        # for rp in not_null_role_points:
-            # total += rp.points.value
-
-        return self.estimation
+            total = 0.0
+            for rp in not_null_role_points:
+                total += rp.points.value
+            return total
 		
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -3,7 +3,7 @@ Django==1.7.8
 django-picklefield==0.3.1
 django-sampledatahelper==0.2.2
 gunicorn==19.3.0
-psycopg2==2.5.4
+psycopg2==2.6
 pillow==2.5.3
 pytz==2014.4
 six==1.8.0
@@ -29,7 +29,7 @@ bleach==1.4
 django-ipware==0.1.0
 premailer==2.8.1
 django-transactional-cleanup==0.1.14
-lxml==3.4.1
+lxml==3.4.4
 git+https://github.com/Xof/django-pglocks.git@dbb8d7375066859f897604132bd437832d2014ea
 
 # Comment it if you are using python >= 3.4

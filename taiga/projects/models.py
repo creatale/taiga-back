@@ -120,6 +120,12 @@ class ProjectDefaults(models.Model):
 
 
 class Project(ProjectDefaults, TaggedMixin, models.Model):
+    USER_STORY_ESTIMATION = 1
+    TASK_ESTIMATION = 2
+    ESTIMATION_MODES = (
+        (USER_STORY_ESTIMATION, 'User Story Estimation'),
+        (TASK_ESTIMATION, 'Task Estimation'),
+    )
     name = models.CharField(max_length=250, null=False, blank=False,
                             verbose_name=_("name"))
     slug = models.SlugField(max_length=250, unique=True, null=False, blank=True,
@@ -177,7 +183,7 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     issues_csv_uuid = models.CharField(max_length=32, editable=False,
                                        null=True, blank=True, default=None,
                                        db_index=True)
-
+    estimation_mode = models.IntegerField(null=False, blank=False, choices=ESTIMATION_MODES, default=USER_STORY_ESTIMATION)
     tags_colors = TextArrayField(dimension=2, null=False, blank=True, verbose_name=_("tags colors"), default=[])
     _importing = None
 
@@ -262,13 +268,15 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
         rp_query.delete()
 
     def _get_user_stories_points(self, user_stories):
-        # role_points = [us.role_points.all() for us in user_stories]
-        # flat_role_points = itertools.chain(*role_points)
-        # flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0},
-                              # flat_role_points)
-        # return dict_sum(*flat_role_dicts)
-        estimations = [us.estimation for us in user_stories]
-        return collections.Counter({'estimation': sum(estimations)})
+        if self.estimation_mode is Project.TASK_ESTIMATION:
+            estimations = [us.estimation for us in user_stories]
+            return collections.Counter({'estimation': sum(estimations)})
+        else:
+            role_points = [us.role_points.all() for us in user_stories]
+            flat_role_points = itertools.chain(*role_points)
+            flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0},
+                                  flat_role_points)
+            return dict_sum(*flat_role_dicts)
 
     def _get_user_stories_closed_points(self, user_stories):
         closed_points = [us.closed_points for us in user_stories]
@@ -331,13 +339,20 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     @property
     def calculated_points(self):
         user_stories = self.user_stories.all().prefetch_related('role_points', 'role_points__points')
-        # closed_user_stories = user_stories.filter(is_closed=True)
         assigned_user_stories = user_stories.filter(milestone__isnull=False)
-        return {
-            "defined": self._get_user_stories_points(user_stories),
-            "closed": self._get_user_stories_closed_points(user_stories),
-            "assigned": self._get_user_stories_points(assigned_user_stories),
-        }
+        if self.estimation_mode is Project.TASK_ESTIMATION:
+            return {
+                "defined": self._get_user_stories_points(user_stories),
+                "closed": self._get_user_stories_closed_points(user_stories),
+                "assigned": self._get_user_stories_points(assigned_user_stories),
+            }
+        else:
+            closed_user_stories = user_stories.filter(is_closed=True)
+            return {
+                "defined": self._get_user_stories_points(user_stories),
+                "closed": self._get_user_stories_points(closed_user_stories),
+                "assigned": self._get_user_stories_points(assigned_user_stories),
+            }
 
 
 class ProjectModulesConfig(models.Model):
